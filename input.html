@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <style>
+        #map { height: 400px; }
+        .grid-cell { fill: rgba(0, 0, 255, 0); stroke: black; } /* Default style for grid cells */
+        .selected-cell { fill: rgba(0, 0, 255, 0.5); } /* Fill color for selected cell */
+    </style>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selectable Grid Cells</title>
+</head>
+<body>
+    <div id="map" style="height: 700px"></div>
+
+    <input type="file" id="fileInput" accept=".json">
+</body>
+
+<script>
+    var map = L.map('map').setView([30.4117, -86.6181], 10); // Fort Walton Beach, Florida coordinates
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    document.getElementById('fileInput').addEventListener('change', handleFileSelect, false);
+
+    function handleFileSelect(event) {
+        var file = event.target.files[0];
+        var reader = new FileReader();
+
+        reader.onload = function(event) {
+            var gridSize = JSON.parse(event.target.result).gridSize;
+            createGrid(gridSize);
+        };
+
+        reader.readAsText(file);
+    }
+
+    function createGrid(gridSize) {
+        // Clear existing grid if any
+        map.eachLayer(function(layer) {
+            if (layer instanceof L.Rectangle) {
+                map.removeLayer(layer);
+            }
+        });
+
+        var bounds = map.getBounds();
+        var minLat = bounds.getSouth();
+        var maxLat = bounds.getNorth();
+        var minLng = bounds.getWest();
+        var maxLng = bounds.getEast();
+
+        var gridSizeLat = gridSize[0];
+        var gridSizeLng = gridSize[1];
+
+        // Add rectangles to the map
+        for (var lat = minLat; lat < maxLat; lat += gridSizeLat) {
+            for (var lng = minLng; lng < maxLng; lng += gridSizeLng) {
+                var cellBounds = [
+                    [lat, lng],
+                    [lat + gridSizeLat, lng + gridSizeLng]
+                ];
+
+                // Create rectangle representing the cell
+                var cellRectangle = L.rectangle(cellBounds, { className: 'grid-cell' });
+
+                // Add the rectangle to the map
+                map.addLayer(cellRectangle);
+            }
+        }
+    }
+
+    // Event handler for cell selection/deselection
+    map.on('layeradd', function(event) {
+        var layer = event.layer;
+
+        // Attach click event listener to the rectangle representing the cell
+        layer.on('click', function() {
+            if (layer.options.className === 'selected-cell') {
+                // If the cell is already selected, deselect it by removing the style
+                layer.setStyle({ fillOpacity: 0, fillColor: 'transparent' });
+                layer.options.className = 'grid-cell'; // Update class name
+            } else {
+                // Handle cell selection here
+                console.log('Selected cell:', layer.getBounds());
+                // You can further customize the behavior here, such as highlighting the selected cell
+                layer.setStyle({ fillOpacity: 0.5, fillColor: 'blue' });
+                layer.options.className = 'selected-cell'; // Update class name
+            }
+        });
+    });
+</script>
+</html>
